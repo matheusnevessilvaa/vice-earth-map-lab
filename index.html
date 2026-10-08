@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Vice Earth Map Lab v5 — Destaque de Vias e Rios</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@^6.13.0/dist/maplibre-gl.css">
+<style>
+html,body,#map{margin:0;width:100%;height:100%;overflow:hidden;background:#2f6998}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+#map{position:fixed;inset:0}
+#status{
+ position:fixed;z-index:20;left:12px;top:12px;max-width:min(430px,calc(100vw - 24px));
+ background:rgba(14,17,23,.92);color:#fff;border:1px solid rgba(255,255,255,.14);
+ border-radius:13px;padding:10px 12px;font-size:12px;line-height:1.35
+}
+#status strong{display:block;font-size:13px;margin-bottom:3px}
+#state{opacity:.78}
+#home,#toggleRaw,#toggleRoads{
+ margin-top:8px;border:1px solid rgba(255,255,255,.18);background:#2a2d36;color:#fff;
+ border-radius:8px;padding:7px 10px;font-weight:700
+}
+.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{display:none!important}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="status">
+ <strong>VICE EARTH MAP LAB v5 · DESTAQUE DE VIAS E RIOS</strong>
+ <div id="state">Iniciando MapLibre…</div>
+ <button id="home">Ver mapa inteiro</button>
+<button id="toggleRaw">Ocultar RAW</button>
+<button id="toggleRoads">Ocultar destaque</button>
+</div>
+
+<script type="module">
+import * as maplibregl from 'https://unpkg.com/maplibre-gl@^6.13.0/dist/maplibre-gl.mjs';
+
+const state=document.querySelector("#state");
+const ROOT="https://raw.githubusercontent.com/rolux/gtadb.org/main/maps/tiles/6/yanis%2C16";
+const YANIS_BOUNDS=[[-118,-58],[18,79]];
+const NAV_BOUNDS=[[-135,-70],[35,84]];
+const PROTO="yanisraw";
+
+state.textContent="MapLibre carregado. Registrando tiles…";
+
+maplibregl.addProtocol(PROTO, async (params, abortController)=>{
+  try{
+    const u=new URL(params.url);
+    const parts=(u.hostname+u.pathname).split("/").filter(Boolean);
+    // yanisraw://raw/{z}/{x}/{y}
+    const webZ=Number(parts[1]);
+    const x=Number(parts[2]);
+    const y=Number(parts[3]);
+    const gz=webZ-2;
+
+    if(!Number.isFinite(gz) || gz<0 || gz>6){
+      throw new Error(`zoom inválido: web ${webZ} → Yanis ${gz}`);
+    }
+
+    const url=`${ROOT}/${gz}/${gz}%2C${y}%2C${x}.jpg`;
+    const res=await fetch(url,{signal:abortController.signal,cache:"force-cache"});
+    if(!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+
+    // EXATAMENTE o tipo que o MapLibre aceita no protocolo raster.
+    const bmp=await createImageBitmap(await res.blob());
+    return {data:bmp};
+  }catch(err){
+    state.textContent="ERRO DE TILE: "+(err?.message||err);
+    console.error(err);
+    throw err;
+  }
+});
+
+
+
+const EMPHASIS_PROTO="yanisemphasis";
+
+function rgbToHsv(r,g,b){
+  r/=255;g/=255;b/=255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;
+  let h=0;
+  if(d){
+    if(mx===r)h=((g-b)/d)%6;
+    else if(mx===g)h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h*=60;if(h<0)h+=360;
+  }
+  return [h,mx===0?0:d/mx,mx];
+}
+
+function isWater(r,g,b){
+  const [h,s,v]=rgbToHsv(r,g,b);
+  return (h>=178&&h<=238&&s>.18&&v>.22) || (b>110&&b>r*1.15&&g>75);
+}
+
+function isMajorRoad(r,g,b){
+  const [h,s,v]=rgbToHsv(r,g,b);
+  return (((h>=330||h<=22)&&s>.20&&v>.28) || (h>=285&&h<=330&&s>.18&&v>.28));
+}
+
+function isLight(r,g,b){
+  const [h,s,v]=rgbToHsv(r,g,b);
+  const lum=.2126*r+.7152*g+.0722*b;
+  return s<.12 && v>.76 && lum>190;
+}
+
+maplibregl.addProtocol(EMPHASIS_PROTO, async (params, abortController)=>{
+  const u=new URL(params.url);
+  const parts=(u.hostname+u.pathname).split("/").filter(Boolean);
+  const webZ=Number(parts[1]),x=Number(parts[2]),y=Number(parts[3]),gz=webZ-2;
+
+  if(!Number.isFinite(gz)||gz<0||gz>6) throw new Error(`zoom inválido: web ${webZ} → Yanis ${gz}`);
+
+  const url=`${ROOT}/${gz}/${gz}%2C${y}%2C${x}.jpg`;
+  const res=await fetch(url,{signal:abortController.signal,cache:"force-cache"});
+  if(!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+
+  const bmp=await createImageBitmap(await res.blob());
+  const w=bmp.width,h=bmp.height;
+  const c=new OffscreenCanvas(w,h);
+  const ctx=c.getContext("2d",{willReadFrequently:true});
+  ctx.drawImage(bmp,0,0);
+
+  const im=ctx.getImageData(0,0,w,h),d=im.data;
+  const light=new Uint8Array(w*h);
+  const water=new Uint8Array(w*h);
+  const major=new Uint8Array(w*h);
+
+  for(let yy=0;yy<h;yy++){
+    for(let xx=0;xx<w;xx++){
+      const i=(yy*w+xx)*4, idx=yy*w+xx;
+      const r=d[i],g=d[i+1],b=d[i+2];
+      light[idx]=isLight(r,g,b)?1:0;
+      water[idx]=isWater(r,g,b)?1:0;
+      major[idx]=isMajorRoad(r,g,b)?1:0;
+    }
+  }
+
+  const road=new Uint8Array(w*h);
+  for(let yy=2;yy<h-2;yy++){
+    for(let xx=2;xx<w-2;xx++){
+      const idx=yy*w+xx;
+      if(!light[idx]) continue;
+
+      let nLight=0;
+      for(let dy=-2;dy<=2;dy++){
+        for(let dx=-2;dx<=2;dx++){
+          nLight+=light[(yy+dy)*w+(xx+dx)];
+        }
+      }
+      if(nLight>=4 && nLight<=16) road[idx]=1;
+    }
+  }
+
+  const riverEdge=new Uint8Array(w*h);
+  for(let yy=1;yy<h-1;yy++){
+    for(let xx=1;xx<w-1;xx++){
+      const idx=yy*w+xx;
+      if(!water[idx]) continue;
+      let nonWater=0;
+      for(let dy=-1;dy<=1;dy++){
+        for(let dx=-1;dx<=1;dx++){
+          if(!water[(yy+dy)*w+(xx+dx)]) nonWater++;
+        }
+      }
+      if(nonWater>=2) riverEdge[idx]=1;
+    }
+  }
+
+  for(let yy=0;yy<h;yy++){
+    for(let xx=0;xx<w;xx++){
+      const idx=yy*w+xx, i=idx*4;
+
+      if(major[idx]){
+        d[i]=66; d[i+1]=68; d[i+2]=72; d[i+3]=225;
+      } else if(road[idx]){
+        d[i]=104; d[i+1]=112; d[i+2]=118; d[i+3]=205;
+      } else if(riverEdge[idx]){
+        d[i]=24; d[i+1]=126; d[i+2]=177; d[i+3]=210;
+      } else {
+        d[i+3]=0;
+      }
+    }
+  }
+
+  ctx.putImageData(im,0,0);
+  return {data:await createImageBitmap(c)};
+});
+
+const map=new maplibregl.Map({
+  container:"map",
+  style:{
+    version:8,
+    sources:{},
+    layers:[{id:"background",type:"background",paint:{"background-color":"#2f6998"}}]
+  },
+  center:[-50,10],
+  zoom:2.2,
+  bearing:0,
+  pitch:0,
+  minZoom:2,
+  maxZoom:11,
+  maxBounds:NAV_BOUNDS,
+  renderWorldCopies:false,
+  attributionControl:false,
+  dragRotate:false,
+  pitchWithRotate:false
+});
+
+map.touchZoomRotate.disableRotation();
+
+function fitAll(duration=0){
+  const mobile=matchMedia("(max-width:899px), (orientation:portrait)").matches;
+  map.fitBounds(YANIS_BOUNDS,{
+    padding:mobile?{top:90,right:20,bottom:28,left:20}:{top:28,right:28,bottom:28,left:28},
+    bearing:0,pitch:0,duration,maxZoom:4.8
+  });
+  setTimeout(()=>{
+    if(map.getZoom()<2.05) map.setZoom(2.05);
+  },duration+20);
+}
+
+map.on("load",()=>{
+  state.textContent="Mapa iniciado. Adicionando Yanis RAW…";
+
+  map.addSource("yanis",{
+    type:"raster",
+    tileSize:256,
+    minzoom:2,
+    maxzoom:8,
+    tiles:[`${PROTO}://raw/{z}/{x}/{y}`],
+    attribution:"GTADB / Yanis v16 · CC BY 4.0"
+  });
+
+  map.addLayer({
+    id:"yanis",
+    type:"raster",
+    source:"yanis",
+    paint:{
+      "raster-opacity":1,
+      "raster-fade-duration":0,
+      "raster-resampling":"linear"
+    }
+  });
+
+  map.addSource("emphasis-test",{
+    type:"raster",
+    tileSize:256,
+    minzoom:2,
+    maxzoom:8,
+    tiles:[`${EMPHASIS_PROTO}://raw/{z}/{x}/{y}`]
+  });
+
+  map.addLayer({
+    id:"emphasis-test",
+    type:"raster",
+    source:"emphasis-test",
+    paint:{
+      "raster-opacity":1,
+      "raster-fade-duration":0,
+      "raster-resampling":"linear"
+    }
+  });
+
+  fitAll(0);
+  state.textContent="RAW intacto + destaque experimental de vias e rios por cima.";
+});
+
+map.on("idle",()=>{
+  if(!state.textContent.startsWith("ERRO")){
+    state.textContent=`OK · zoom ${map.getZoom().toFixed(2)} · tiles carregados`;
+  }
+});
+
+map.on("error",e=>{
+  const msg=e?.error?.message||e?.message||"erro desconhecido";
+  state.textContent="ERRO MAPA: "+msg;
+  console.error(e);
+});
+
+document.querySelector("#home").onclick=()=>fitAll(300);
+let rawOn=true,emphasisOn=true;
+document.querySelector("#toggleRaw").onclick=()=>{
+  rawOn=!rawOn;
+  map.setLayoutProperty("yanis","visibility",rawOn?"visible":"none");
+  document.querySelector("#toggleRaw").textContent=rawOn?"Ocultar RAW":"Mostrar RAW";
+};
+document.querySelector("#toggleRoads").onclick=()=>{
+  emphasisOn=!emphasisOn;
+  map.setLayoutProperty("emphasis-test","visibility",emphasisOn?"visible":"none");
+  document.querySelector("#toggleRoads").textContent=emphasisOn?"Ocultar destaque":"Mostrar destaque";
+};
+</script>
+</body>
+</html>
