@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04020a">
+<title>Vice Earth — v6.5 Premium Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Syncopate:wght@700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@^6.13.0/dist/maplibre-gl.css">
+<style>
+:root{--bg:#04020a;--card:rgba(10,6,22,.78);--pk:#ff3ec8;--ln:rgba(255,62,200,.35);--tx:#fff;--mu:#aaa1ba;--cyan:#25d8ff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font:14px Inter,system-ui,sans-serif}
+button,input{font:inherit}button{color:inherit;cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#map{position:absolute;inset:0;background:#05030b;opacity:0;pointer-events:none;transition:opacity .9s ease}
+body.map-active #map{opacity:1;pointer-events:auto}
+.maplibregl-canvas{outline:none}
+.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{display:none!important}
+.panel{background:var(--card);border:1px solid var(--ln);border-radius:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.pill{border:1px solid var(--ln);background:var(--card);border-radius:999px;padding:8px 14px;font-weight:600;white-space:nowrap;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.pill.on{background:var(--pk);border-color:var(--pk)}
+.sr{position:absolute;inset:0;pointer-events:none;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}.sr>*{pointer-events:auto}
+.logo{font:700 15px Syncopate,'Archivo Black',sans-serif;letter-spacing:.01em;background:linear-gradient(90deg,#ff8ae6,#ff2fb7 60%,#c43bff);-webkit-background-clip:text;background-clip:text;color:transparent}.logo b{font:inherit;color:#fff;-webkit-text-fill-color:#fff}
+.search{display:flex;align-items:center;gap:8px;padding:12px 14px;border-radius:999px;border:1px solid var(--ln);background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.search input{flex:1;background:none;border:0;color:var(--tx);font-size:15px;min-width:0;outline:none}.search svg{flex:none;opacity:.9}
+.cta{background:var(--pk);border:0;border-radius:999px;padding:16px;font:600 17px Inter,sans-serif;box-shadow:0 0 24px var(--ln)}
+#app{display:none;z-index:12}
+#top{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:12px;right:12px;display:flex;flex-direction:column;gap:8px;max-width:480px}
+#bar{display:flex;justify-content:space-between;align-items:center}#bar button{background:none;border:0;font-size:22px;padding:6px;min-width:44px;min-height:44px}
+#res{display:none;padding:6px;max-height:44vh;overflow:auto}
+#res button,.item{display:flex;gap:12px;align-items:center;width:100%;background:none;border:0;text-align:left;padding:8px;border-radius:12px;color:#fff}
+#chips{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:0 18px 4px 0;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}#chips::-webkit-scrollbar{display:none}#chips .pill{scroll-snap-align:start;flex:0 0 auto}
+#fab{position:absolute;right:12px;top:44%;display:flex;flex-direction:column;gap:8px}
+#fab button{width:46px;height:46px;border-radius:14px;border:1px solid var(--ln);background:rgba(9,6,18,.84);font-size:20px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 8px 24px rgba(0,0,0,.24)}
+#styleBtn{font-size:17px!important}
+#stylePanel{position:absolute;right:68px;bottom:58px;display:none;z-index:24;padding:8px;gap:6px;align-items:center}
+#stylePanel.open{display:flex}
+#stylePanel button{border:1px solid var(--ln);background:#10091f;color:#fff;border-radius:999px;padding:9px 12px;font-weight:700;white-space:nowrap}
+#stylePanel button.on{background:var(--pk);border-color:var(--pk)}
+@media (max-width:899px){#stylePanel{right:68px;bottom:calc(78px + env(safe-area-inset-bottom,0px));flex-direction:column;align-items:stretch}#stylePanel button{font-size:12px;padding:8px 10px}}
+
+#sheet{position:absolute;left:10px;right:10px;bottom:calc(20px + env(safe-area-inset-bottom,0px));max-width:480px;padding:12px;display:none}
+.img{width:100%;height:120px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:48px}.th{width:64px;height:56px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
+#sheet h2{margin:10px 0 4px;font-size:18px}.mu{color:var(--mu);font-size:13px}.row2{display:flex;gap:10px;margin-top:12px}.row2 button{flex:1;padding:13px;border-radius:12px;border:1px solid var(--ln);background:#1b1230;font-weight:600}.row2 .pri{background:var(--pk);border-color:var(--pk)}
+#drawer{position:absolute;inset:0;background:rgba(4,2,10,.97);display:none;overflow:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(40px + env(safe-area-inset-bottom,0px));z-index:30}
+#drawer h3{font-size:18px;margin:18px 0 10px}.item{border:1px solid var(--ln);margin-bottom:8px;background:#0e0820}
+#toast{position:absolute;left:50%;top:calc(70px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--pk);padding:10px 16px;border-radius:999px;font-weight:600;display:none;z-index:80;max-width:calc(100vw - 30px);text-align:center}
+#demoBadge{position:absolute;left:50%;bottom:calc(7px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:15;font-size:9px;line-height:1.2;letter-spacing:.02em;color:#cbbfd8;background:rgba(4,2,10,.72);border:1px solid rgba(255,255,255,.10);border-radius:999px;padding:5px 9px;white-space:nowrap;pointer-events:auto;max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}#demoBadge a{color:#eee5f2;text-decoration:none}#demoBadge a:focus-visible{outline:1px solid #fff;outline-offset:2px}
+#app #bar,#app .search{opacity:0;transition:opacity .8s ease}#app.t1 #bar,#app.t1 .search{opacity:1}#app #chips,#app #fab{opacity:0;transition:opacity .8s ease}#app.t2 #chips,#app.t2 #fab{opacity:1}
+@media (min-width:900px){#top{top:calc(14px + env(safe-area-inset-top,0px));left:18px;right:auto;width:390px;gap:8px}#top .search{padding:11px 14px}#chips{flex-wrap:wrap;overflow:visible;padding-right:0}#chips .pill{padding:7px 12px}#fab{right:18px;top:auto;bottom:58px}#sheet{left:18px;right:auto;width:390px;bottom:58px}#drawer{left:auto;width:440px;border-left:1px solid var(--ln);backdrop-filter:blur(16px)}}
+@media (max-width:899px){#top{max-width:none}#top .search{padding:11px 14px}#top .search input{font-size:14px}#bar{padding:0 2px}#fab{right:12px;top:auto;bottom:calc(78px + env(safe-area-inset-bottom,0px))}#demoBadge{font-size:8.5px;bottom:calc(7px + env(safe-area-inset-bottom,0px));padding:4px 8px}}
+/* Splash */
+#splash{z-index:20;overflow:hidden;background:#030208;transition:opacity .95s ease,visibility .95s ease}
+#splashArt{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}#splashArt picture,#splashArt img{display:block;width:100%;height:100%}#splashArt img{object-fit:cover;object-position:center;transform:scale(1);filter:brightness(.92) saturate(1.03);transition:transform 1.45s cubic-bezier(.22,.61,.36,1),filter 1s ease;will-change:transform,filter}
+#splashArt::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 18% 52%,rgba(3,2,8,.72),rgba(3,2,8,.48) 31%,transparent 62%),linear-gradient(90deg,rgba(3,2,8,.38),transparent 52%),linear-gradient(180deg,rgba(3,2,8,.08),transparent 48%,rgba(3,2,8,.34));pointer-events:none}
+#hero{position:absolute;left:0;right:0;bottom:calc(26px + env(safe-area-inset-bottom,0px));padding:0 22px;display:flex;flex-direction:column;align-items:center;text-align:center;pointer-events:none;z-index:2;transition:opacity .6s ease,transform 1.1s ease}#hero button{pointer-events:auto}
+.mark{margin:0;font:700 clamp(24px,8vw,40px)/1 Syncopate,'Archivo Black',Impact,sans-serif;letter-spacing:.01em;white-space:nowrap}.mark .v{background:linear-gradient(90deg,#ff8ae6,#ff2fb7 60%,#c43bff);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 14px #ff3ec855)}.mark .e{color:#fff}
+#hero small{display:block;margin-top:12px;font:500 clamp(7.5px,2.2vw,10px)/1 Inter,sans-serif;letter-spacing:.5em;color:#cfc3e6;white-space:nowrap}
+#bot{display:flex;flex-direction:column;gap:12px;width:100%;max-width:440px;margin-top:22px}#bot .search{text-align:left;background:rgba(20,18,32,.55);border:1px solid #ffffff38;box-shadow:inset 0 -1px 0 #ff3ec880;padding:14px 18px;color:#cfc8dc}#bot .search span{font-size:14px;color:#b9b1c9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bot .cta{display:flex;align-items:center;justify-content:center;gap:12px;color:#fff;background:linear-gradient(90deg,#ff5fc6,#ff2fb7);padding:16px;box-shadow:0 0 26px #ff3ec84d;transition:transform .25s,box-shadow .25s,filter .25s}#bot .cta:active{transform:scale(.97);filter:brightness(.95)}
+.tag{display:flex;align-items:center;gap:14px;margin:6px 0 0;font:400 12.5px/1.4 Inter,sans-serif;color:#c9c0d9}.tag::before,.tag::after{content:"";flex:1;height:1px;background:#ffffff22}
+#splash.transitioning #splashArt img,#splash.out #splashArt img{transform:scale(1.11);filter:brightness(.55) saturate(1.08)}#splash.transitioning #hero,#splash.out #hero{opacity:0;transform:translateY(24px)}#splash.out{opacity:0;visibility:hidden;pointer-events:none}
+@media (min-width:900px) and (orientation:landscape){#hero{left:clamp(32px,6vw,110px);right:auto;top:50%;bottom:auto;width:min(560px,44vw);padding:0;align-items:flex-start;text-align:left;transform:translateY(-50%)}#splash.transitioning #hero,#splash.out #hero{transform:translate(-30px,-50%)}.mark{font-size:clamp(34px,3.7vw,56px)}#hero small{font-size:clamp(9px,.85vw,12px);margin-top:16px}#bot{max-width:none;margin-top:36px}#bot .search{padding:18px 22px}#bot .search span{font-size:16px}#bot .cta{padding:19px;font-size:18px}.tag{font-size:14px}}
+@media (max-width:899px),(orientation:portrait){#hero{bottom:calc(38px + env(safe-area-inset-bottom,0px));padding-left:20px;padding-right:20px}#splashArt::after{background:linear-gradient(180deg,rgba(3,2,8,.02) 0%,rgba(3,2,8,.06) 34%,rgba(3,2,8,.76) 67%,rgba(3,2,8,.97) 100%)}#splashArt img{object-position:center top}.tag{font-size:12px}}
+@media (prefers-reduced-motion:reduce){#map,#splash,#splashArt img,#hero,#app #bar,#app .search,#app #chips,#app #fab{transition-duration:.01ms!important}#splash.transitioning #splashArt img,#splash.out #splashArt img{transform:none}}
+
+/* VICE EARTH — interface premium v6.3 (somente apresentação) */
+:root{--card:rgba(7,11,22,.88);--ln:rgba(240,108,217,.20)}
+#top{gap:10px}#bar{background:rgba(5,9,19,.86);border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:2px 8px;box-shadow:0 10px 34px #0007;backdrop-filter:blur(18px)}
+#bar .logo{font-size:17px!important;letter-spacing:-.035em}#bar button{color:#f5eaf7}
+#top>.search{background:rgba(9,14,27,.94);border:1px solid #ffffff30;box-shadow:0 12px 26px #0006;min-height:48px}
+#chips{gap:7px;flex-wrap:wrap;overflow:visible;padding:0 0 4px}#chips .pill{font-size:11px;padding:10px 11px;background:rgba(8,13,25,.94);border:1px solid #ffffff24;box-shadow:0 6px 15px #0005}#chips .pill.on{background:linear-gradient(110deg,#fa31bf,#d925d4);color:#fff;box-shadow:0 0 22px #f43fc666;border-color:#ff75df}
+#fab{gap:7px}#fab button{border-radius:13px;background:rgba(6,13,26,.93);border:1px solid #ffffff26;box-shadow:0 8px 22px #0009}#fab button:active{background:#7e196d}
+#sheet{background:linear-gradient(165deg,rgba(13,18,31,.98),rgba(4,9,18,.98));border:1px solid #f144bc55;border-radius:23px;padding:14px;box-shadow:0 16px 45px #000c;max-height:55vh;overflow:auto}
+#sheet .img{height:148px;background:linear-gradient(135deg,#0e3954,#7e236e)!important;border-radius:16px}#sheet h2{font-size:21px;letter-spacing:-.03em;margin-top:12px}#sheet .row2 button{border-radius:999px}#sheet .row2 .pri{background:linear-gradient(100deg,#ff47c4,#dd27d4);border:0}
+#drawer{background:linear-gradient(155deg,#060c17,#090b19 65%,#150a20);padding-left:18px;padding-right:18px}#drawer h3{letter-spacing:-.025em;font-size:19px}#drawer .item{background:rgba(13,21,36,.95);border:1px solid #ffffff1d;border-radius:15px;padding:10px;margin-bottom:9px;min-height:70px}#drawer .item:active{border-color:#ff4cce}#drawer .th{border-radius:12px;background:#30103b}
+#res{background:rgba(7,12,24,.98);border:1px solid #ff58c94a;box-shadow:0 14px 32px #000a}
+#stylePanel{background:rgba(8,12,24,.96);border-color:#f145b544}
+@media(max-width:899px){#top{left:10px;right:10px;gap:8px}#bar{min-height:47px}#chips{max-width:calc(100vw - 78px)}#chips .pill{padding:8px 10px}#fab{right:10px;bottom:calc(94px + env(safe-area-inset-bottom,0px))}#fab button{width:42px;height:42px}#sheet{bottom:calc(42px + env(safe-area-inset-bottom,0px))}}
+
+/* Vice Earth 6.4 — layout mobile da referência, sem alterar a cartografia */
+:root{--pk:#ff35c5;--card:rgba(5,10,19,.93);--ln:rgba(255,255,255,.16)}
+#bar{background:transparent;border:0;box-shadow:none;padding:0 2px;min-height:43px}
+#bar .logo{font-family:Syncopate,'Archivo Black',sans-serif;font-size:16px!important;letter-spacing:-.06em}
+#bar .logo b{color:#fff}
+#bar button{font-size:25px;min-height:40px;min-width:40px}
+#top>.search{min-height:46px;border-radius:24px;background:rgba(12,20,35,.94);border:1px solid rgba(255,255,255,.17);box-shadow:0 8px 25px #0006}
+#chips{gap:7px;max-width:100%;padding:2px 0 6px}
+#chips .pill{font-size:12px;font-weight:700;letter-spacing:-.02em;padding:9px 12px;border-radius:22px;background:rgba(5,13,24,.94);border:1px solid rgba(255,255,255,.12)}
+#chips .pill.on{background:#f832c3;color:#100718;border-color:#ff70dd;box-shadow:0 2px 16px #fc2cc27a}
+#fab{gap:9px;right:13px}
+#fab>button{width:43px;height:43px;border-radius:15px;font-size:23px;background:rgba(4,11,22,.94);border:1px solid #ffffff22}
+#fab #tilt{font-size:14px;font-weight:800}
+.zoom-stack{display:flex;flex-direction:column;overflow:hidden;border-radius:15px;background:rgba(4,11,22,.94);border:1px solid #ffffff22;box-shadow:0 8px 22px #0009}
+#fab .zoom-stack button{border:0;border-radius:0;width:43px;height:44px;box-shadow:none;background:transparent;font-size:24px}
+#fab .zoom-stack button+button{border-top:1px solid #ffffff22}
+#sheet{max-height:min(65vh,610px);padding:12px 13px 16px;border-radius:27px 27px 20px 20px;border:1px solid rgba(255,87,209,.4);box-shadow:0 0 0 1px #ffffff08,0 14px 55px #000e;background:linear-gradient(165deg,#09101d,#040913)}
+.sheet-grip{height:4px;width:36px;border-radius:10px;background:#ffffff44;margin:0 auto 10px}
+#sheet .sheet-art{height:clamp(118px,22vh,210px);border-radius:18px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:inset 0 -60px 80px #0007}
+#sheet .sheet-art:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 70% 20%,#ffffff22,transparent 48%)}
+#sheet .art-icon{font-size:64px;filter:drop-shadow(0 7px 12px #0007);position:relative}
+#sheet .art-note{position:absolute;bottom:11px;right:12px;background:#060b17ba;border:1px solid #ffffff2b;border-radius:20px;padding:5px 9px;font-size:10px;color:#e4d9e9}
+#closeSheet{position:absolute;top:9px;right:10px;border:1px solid #ffffff3b;background:#060c18db;color:#fff;border-radius:50%;width:33px;height:33px;font-size:22px}
+.sheet-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px}
+#sheet .sheet-title h2{margin:0;font-size:21px;line-height:1.25}
+.demo-pill{font-size:10px;color:#73efb2;border-radius:30px;background:#083323;border:1px solid #135e43;padding:6px 9px;white-space:nowrap}
+.sheet-meta{font-size:12px;color:#c5b8d1;margin-top:8px}.sheet-meta span{color:#ff48ca;padding:0 5px}
+.sheet-desc{color:#e7dfed;font-size:13px;line-height:1.5;margin:9px 0 0}
+#sheet .row2{margin-top:14px}#sheet .row2 button{font-size:13px;padding:13px 7px;background:#111b2c;border:1px solid #66738b;border-radius:24px}
+#sheet .row2 .pri{background:linear-gradient(110deg,#ff60d0,#f32fc5);border:0;color:#15071a;box-shadow:0 0 17px #ff3ec840}
+@media(max-width:899px){#top{left:15px;right:15px;gap:7px}#bar{min-height:43px}#top>.search{padding:9px 13px}#chips{max-width:calc(100vw - 30px)}#fab{bottom:calc(77px + env(safe-area-inset-bottom,0px))}#sheet{left:8px;right:8px;bottom:calc(25px + env(safe-area-inset-bottom,0px))}}
+@media(min-width:900px){#top{gap:7px}#chips{flex-wrap:wrap}#sheet{max-height:70vh}}
+
+/* V6.5: camada consolidada de responsividade mobile */
+@media(max-width:899px){
+ #top{top:calc(9px + env(safe-area-inset-top,0px));left:14px;right:14px;gap:9px;max-width:none}
+ #bar{height:44px;min-height:44px;padding:0 5px;background:rgba(4,11,24,.85);border:1px solid rgba(255,255,255,.10);border-radius:18px;box-shadow:0 8px 28px #0004;backdrop-filter:blur(16px)}
+ #bar .logo{font-size:14px!important;letter-spacing:-.045em}
+ #bar button{min-width:38px;min-height:38px;font-size:22px;padding:4px}
+ #top>.search{height:43px;min-height:43px;padding:8px 13px;background:rgba(4,11,24,.9);border:1px solid rgba(255,255,255,.15);box-shadow:0 5px 18px #0004}
+ #top>.search input{font-size:12px}
+ #top>.search svg{width:18px;height:18px}
+ #chips{display:flex;flex-wrap:wrap;overflow:visible;gap:6px;max-width:100%;padding:0}
+ #chips .pill{font-size:11px;line-height:1.2;padding:9px 10px;border-radius:18px;font-weight:650;box-shadow:0 5px 13px #0005}
+ #chips .pill.on{background:#f733c3;color:#140717;border-color:#ff80e1}
+ #fab{top:auto;bottom:calc(98px + env(safe-area-inset-bottom,0px));right:13px;gap:7px}
+ #fab button{width:40px;height:40px;border-radius:14px;font-size:19px;background:rgba(4,11,24,.92);border:1px solid #ffffff22;box-shadow:0 6px 17px #0006}
+ #fab .zoom-stack{border-radius:14px;overflow:hidden;background:rgba(4,11,24,.92)}
+ #fab .zoom-stack button{box-shadow:none;border-radius:0}
+ #fab #tilt{font-size:13px!important;font-weight:800}
+ #sheet{left:10px;right:10px;bottom:calc(16px + env(safe-area-inset-bottom,0px));padding:10px 12px 13px;max-height:min(57vh,490px);border-radius:24px;background:rgba(5,12,24,.97);overflow-y:auto;overscroll-behavior:contain}
+ #sheet .sheet-grip{margin:0 auto 9px;width:37px;height:4px}
+ #sheet .sheet-art{height:clamp(96px,17vh,145px);border-radius:15px}
+ #sheet .art-icon{font-size:47px}
+ #sheet .art-note{font-size:9px}
+ #sheet .sheet-title h2{font-size:18px}
+ #sheet .sheet-desc{font-size:12px;line-height:1.35;margin:8px 0}
+ #sheet .sheet-meta{font-size:11px}
+ #sheet .row2{margin-top:10px;gap:9px}
+ #sheet .row2 button{padding:11px 7px;font-size:12px}
+ #drawer{background:rgba(4,9,20,.97)}
+}
+@media(max-width:390px){#chips .pill{font-size:10px;padding:8px 9px}#bar .logo{font-size:12px!important}}
+/* Pontos com pictogramas vetoriais, sem dependência de imagens externas */
+.maplibregl-canvas{touch-action:pan-x pan-y}
+</style>
+
+<style id="vice-v66-mobile-chips">
+/* V6.6: filtros em uma unica linha, arrastaveis lateralmente */
+@media(max-width:899px){
+ #top{min-width:0!important}
+ #chips{
+   display:flex!important;
+   flex-direction:row!important;
+   flex-wrap:nowrap!important;
+   overflow-x:auto!important;
+   overflow-y:hidden!important;
+   width:100%!important;
+   max-width:100%!important;
+   min-width:0!important;
+   gap:7px!important;
+   padding:3px 8px 9px 1px!important;
+   scrollbar-width:none!important;
+   -webkit-overflow-scrolling:touch!important;
+   overscroll-behavior-x:contain;
+   touch-action:pan-x;
+ }
+ #chips::-webkit-scrollbar{display:none!important}
+ #chips .pill{
+   flex:0 0 auto!important;
+   white-space:nowrap!important;
+   background:rgba(5,12,25,.67)!important;
+   border-color:rgba(255,255,255,.14)!important;
+   backdrop-filter:blur(12px);
+   -webkit-backdrop-filter:blur(12px);
+ }
+ #chips .pill.on{
+   background:rgba(248,50,195,.82)!important;
+   border-color:rgba(255,130,225,.65)!important;
+   color:#17091b!important;
+ }
+ #bar,#top>.search{background:rgba(5,12,25,.70)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+ #fab button{background:rgba(5,12,25,.70)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+}
+</style>
+<style id="vice-v67-icons">#chips .pill{display:inline-flex!important;align-items:center;gap:6px}#fab #styleBtn,#fab #overview{display:flex;align-items:center;justify-content:center}#fab #styleBtn svg,#fab #overview svg{width:21px;height:21px}</style>
+<style id="vice-v69-touch-polish">
+/* Remove o realce azul de toque no Chrome Android sem desativar o foco do teclado. */
+html,body,button,a,input,textarea,select,label,[role="button"],.pill,#chips,#fab,* { -webkit-tap-highlight-color: transparent; }
+button,a,[role="button"],.pill { -webkit-touch-callout: none; }
+/* O foco continua visivel para navegacao por teclado. */
+:focus-visible { outline: 2px solid #ff4dcc; outline-offset: 3px; }
+</style>
+
+<style id="vice-v610-press-feedback">
+/* Feedback tactile: subtle scale and glow; preserve selected chip state. */
+button,.pill,[role="button"]{transition:transform 145ms cubic-bezier(.2,.8,.2,1),filter 145ms ease,box-shadow 145ms ease,background-color 145ms ease;transform-origin:center;touch-action:manipulation}
+button:active,.pill:active,[role="button"]:active{transform:scale(.955);filter:brightness(1.16);box-shadow:0 0 0 1px rgba(255,104,211,.27),0 0 15px rgba(255,54,189,.15)}
+#fab button:active{transform:scale(.91)}
+#chips .pill:active{transform:scale(.96)}
+@media(prefers-reduced-motion:reduce){button,.pill,[role="button"]{transition:none!important}}
+</style>
+
+<style id="vice-v612-zoom-shape">
+/* Zoom is a joined capsule: keep feedback within each half, never a square outline. */
+#fab .zoom-stack{overflow:hidden!important;isolation:isolate;}
+#fab .zoom-stack button{box-shadow:none!important;outline:none!important;}
+#fab .zoom-stack #zi.vice-pressed{border-radius:13px 13px 0 0!important;box-shadow:inset 0 0 0 2px rgba(255,112,219,.8),inset 0 0 17px rgba(255,45,183,.35)!important;transform:scale(.96)!important;}
+#fab .zoom-stack #zo.vice-pressed{border-radius:0 0 13px 13px!important;box-shadow:inset 0 0 0 2px rgba(255,112,219,.8),inset 0 0 17px rgba(255,45,183,.35)!important;transform:scale(.96)!important;}
+</style>
+</head>
+<body>
+<div id="map" aria-label="Mapa interativo demonstrativo"></div>
+
+<div id="splash" class="sr">
+  <div id="splashArt" aria-hidden="true"><picture><source media="(max-width:899px), (orientation:portrait)" srcset="splash-mobile.webp"><img src="splash-desktop.webp" alt=""></picture></div>
+  <div id="hero">
+    <h1 class="mark"><span class="v">VICE</span> <span class="e">EARTH</span></h1>
+    <small>MAPA COMUNITÁRIO DE LEONIDA</small>
+    <div id="bot">
+      <button class="search" id="s0" aria-label="Buscar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Buscar lugar, atividade ou descoberta...</span></button>
+      <button class="cta" id="go"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L3 10.5l7 3 3 7z"/></svg><span>Explorar Leonida</span></button>
+      <p class="tag">Explore Leonida e acompanhe descobertas da comunidade.</p>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="sr">
+  <div id="top">
+    <div id="bar"><button id="back" aria-label="Voltar">←</button><span class="logo" style="font-size:14px">VICE <b>EARTH</b></span><button id="menu" aria-label="Explorar regiões">☰</button></div>
+    <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" placeholder="Buscar lugar, atividade ou descoberta..." autocomplete="off"></div>
+    <div id="res" class="panel"></div><div id="chips"></div>
+  </div>
+  <div id="fab"><button id="styleBtn" aria-label="Camadas e estilo" title="Camadas e estilo"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></svg></button><button id="overview" aria-label="Ver mapa inteiro" title="Visão geral"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></button><div class="zoom-stack"><button id="zi" aria-label="Aproximar">+</button><button id="zo" aria-label="Afastar">−</button></div><button id="tilt" aria-label="Alternar visão 2D e 3D">3D</button></div>
+  <div id="stylePanel" class="panel"><button data-style="standard" class="on">Padrão</button><button data-style="dark">Dark</button></div>
+  <div id="sheet" class="panel"></div>
+  <div id="drawer">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="logo" style="font-size:14px">VICE <b>EARTH</b></span><button id="x" class="pill">Fechar</button></div>
+    <h3 id="dt">Explorar regiões</h3><p class="mu" style="margin:-3px 0 15px">Descubra lugares e explore o mapa de Leonida.</p><div id="reg"></div>
+    <h3>Mais opções</h3>
+    <button class="item" data-o="saved"><span class="th">🔖</span><div><b>Salvos</b><div class="mu">Seus lugares favoritos</div></div></button>
+    <button class="item" data-o="soon"><span class="th">🕒</span><div><b>Descobertas recentes</b><div class="mu">Veja o que a comunidade encontrou</div></div></button>
+    <button class="item" data-o="add"><span class="th">➕</span><div><b>Adicionar descoberta</b><div class="mu">Contribua com o mapa</div></div></button>
+    <button class="item" data-o="soon"><span class="th">👥</span><div><b>Comunidade</b><div class="mu">Descobertas de outros usuários</div></div></button>
+  </div>
+  <div id="demoBadge" title="Base vetorial experimental do Vice Earth">Mapa vetorial experimental · geometria demonstrativa · não oficial</div>
+</div>
+<div id="toast"></div>
+
+<script type="module">
+import * as maplibregl from 'https://unpkg.com/maplibre-gl@^6.13.0/dist/maplibre-gl.mjs';
+
+const $=s=>document.querySelector(s);
+const esc=t=>String(t).replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;"}[c]));
+const toast=t=>{const e=$("#toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",2400)};
+const G=(a,b)=>`linear-gradient(135deg,${a},${b})`;
+
+/*
+  V6.0: primeira base vetorial experimental do Vice Earth.
+  A geometria foi simplificada a partir de uma referência visual fornecida pelo usuário
+  apenas para prototipagem privada. Não representa cartografia oficial nem deve ser tratada
+  como ativo final de lançamento.
+*/
+const OLD_DEMO_BOUNDS=[[-122,-2],[2,78]];
+const VECTOR_BOUNDS=[[-86,20],[-74,35]];
+function remapDemoPoint(lon,lat){
+ const [[ox0,oy0],[ox1,oy1]]=OLD_DEMO_BOUNDS,[[nx0,ny0],[nx1,ny1]]=VECTOR_BOUNDS;
+ return [nx0+(lon-ox0)/(ox1-ox0)*(nx1-nx0),ny0+(lat-oy0)/(oy1-oy0)*(ny1-ny0)];
+}
+const mk=(id,name,kind,parent,lon,lat,zoom,d,e,g,category)=>{const q=remapDemoPoint(lon,lat);return{id,name,kind,parent,lon:q[0],lat:q[1],zoom,d,e,g,category:category||null,placeholder:true}};
+const CONFIG={
+ storageKey:"viceearth.v6.1",
+ center:[-80,27.5],zoom:3.2,
+ mapBounds:VECTOR_BOUNDS,
+ levels:{region:4.15,city:5.65,poi:6.8}
+};
+
+/*
+  V6.1: interface e marcadores continuam separados da cartografia.
+  A base abaixo é vetorial experimental e serve para validar estilos próprios do Vice Earth.
+  Os pontos continuam demonstrativos e aproximados.
+*/
+const PLACEHOLDER=[
+ mk("leonida","Leonida","country",null,-56,42,3.5,"Mapa comunitário demonstrativo de Leonida.","🌴",G("#ff3ec8","#2a0f5a")),
+ mk("vice-city","Vice City","region","leonida",-24,22,5.4,"Região costeira metropolitana.","🌆",G("#ff7a59","#7a2bd6")),
+ mk("keys","Leonida Keys","region","leonida",-43,7,5.25,"Cadeia de ilhas ao sul.","🏝️",G("#27d3ff","#1b6b8a")),
+ mk("gellhorn","Port Gellhorn","region","leonida",-95,34,5.1,"Região portuária a oeste.","⚓",G("#4a6fa5","#1d2b4a")),
+ mk("ambrosia","Ambrosia","region","leonida",-58,53,5.1,"Interior e áreas rurais.","🌾",G("#ff9a3c","#7a3b2e")),
+ mk("grassrivers","Grassrivers","region","leonida",-66,24,5.15,"Pântanos e áreas selvagens.","🐊",G("#37a35a","#143d2a")),
+ mk("kalaga","Mount Kalaga","region","leonida",-66,67,5.0,"Montanhas e florestas ao norte.","⛰️",G("#6a8caf","#2b3a55")),
+ mk("vc-centro","Vice City — Centro","city","vice-city",-25,23,6.5,"Posição demonstrativa para testar navegação.","🏙️",G("#c9a7ff","#4a1b7a")),
+ mk("vc-orla","Orla","district","vice-city",-18,20,6.8,"Faixa litorânea demonstrativa.","🌅",G("#ffb36b","#e0457b")),
+ mk("vc-criativo","Distrito criativo","district","vice-city",-29,25,6.9,"Bairro demonstrativo.","🎨",G("#8fd3ff","#3a2a8a")),
+ mk("vc-financeiro","Distrito financeiro","district","vice-city",-23,26,6.9,"Área demonstrativa de torres e escritórios.","🏢",G("#8fd3ff","#1b4a6a")),
+ mk("ocean-drive","Ocean Drive","poi","vc-orla",-17,20,7.6,"Ponto demonstrativo; posição ainda não verificada.","📷",G("#ff7a59","#c2338a"),"Lugares"),
+ mk("vice-beach","Vice Beach","poi","vc-orla",-15,22,7.5,"Ponto demonstrativo; posição ainda não verificada.","🏖️",G("#ffb36b","#e0457b"),"Lugares"),
+ mk("vice-port","Vice Port","poi","vc-centro",-29,19,7.45,"Ponto demonstrativo; posição ainda não verificada.","🚢",G("#4a6fa5","#1d2b4a"),"Lugares"),
+ mk("clube","Clube noturno","poi","vc-criativo",-27,25,7.7,"Exemplo de atividade comunitária.","🎵",G("#7a2bd6","#2a0f5a"),"Atividades"),
+ mk("garagem","Garagem","poi","vc-criativo",-30,24,7.7,"Exemplo de ponto de veículos.","🏎️",G("#7a6bff","#2a2a6a"),"Veículos"),
+ mk("cobertura","Cobertura","poi","vc-financeiro",-22,26,7.7,"Exemplo de propriedade.","🏢",G("#27d3ff","#1b4a6a"),"Propriedades"),
+ mk("bunker","Bunker nos pântanos","poi","grassrivers",-67,23,7.0,"Exemplo de segredo não confirmado.","🔒",G("#37e07a","#0f3b26"),"Segredos")
+];
+const Store={get(){try{return JSON.parse(localStorage.getItem(CONFIG.storageKey))||{}}catch{return{}}},set(o){try{localStorage.setItem(CONFIG.storageKey,JSON.stringify(o))}catch{}}};
+const DataSource={async list(){return[...PLACEHOLDER,...(Store.get().discoveries||[])]},async add(p){const s=Store.get();s.discoveries=[...(s.discoveries||[]),p];Store.set(s);return p},savedIds(){return new Set(Store.get().saved||[])},setSaved(set){const s=Store.get();s.saved=[...set];Store.set(s)}};
+
+
+const VECTOR_BASE={"type":"FeatureCollection","features":[{"type":"Feature","properties":{"kind":"land"},"geometry":{"type":"Polygon","coordinates":[[[-81.730368,20.683713],[-81.722029,20.550306],[-81.563586,20.466926],[-81.154969,20.500278],[-80.971508,20.391884],[-80.579569,20.40856],[-80.412787,20.458588],[-80.304378,20.57532],[-80.296039,20.742079],[-80.554552,20.750417],[-80.554552,21.092273],[-80.237665,21.100611],[-80.220987,21.234019],[-80.162613,21.250695],[-80.154274,21.342412],[-80.170952,21.367426],[-81.163308,21.367426],[-81.171647,21.250695],[-81.096595,21.234019],[-81.088256,21.100611],[-80.963169,21.083936],[-80.963169,20.992218],[-80.921473,20.933852],[-80.929812,20.708727],[-81.113273,20.692051],[-81.205003,20.758755],[-81.321751,20.758755],[-81.405142,20.692051],[-81.730368,20.683713]]]}},{"type":"Feature","properties":{"kind":"land"},"geometry":{"type":"Polygon","coordinates":[[[-84.365532,21.534186],[-84.340514,21.442468],[-83.940236,21.484158],[-83.940236,21.275709],[-84.040306,21.209005],[-83.99861,21.058922],[-83.656706,21.008894],[-83.656706,20.700389],[-83.723419,20.541968],[-83.873523,20.53363],[-83.873523,20.433574],[-82.881167,20.433574],[-82.914524,20.717065],[-82.130646,20.842135],[-82.122307,21.058922],[-81.822099,21.02557],[-81.81376,21.092273],[-81.688673,21.092273],[-81.646977,21.334074],[-81.546908,21.342412],[-81.471855,21.47582],[-81.638638,21.684269],[-81.688673,21.35075],[-81.888812,21.342412],[-81.90549,21.784325],[-82.105629,21.784325],[-82.164003,21.909394],[-82.222377,21.792663],[-82.422516,21.792663],[-82.539263,21.951084],[-82.889507,22.109505],[-83.006254,21.92607],[-83.181376,21.92607],[-83.198054,22.109505],[-83.439889,22.151195],[-83.506602,22.301278],[-84.040306,22.284603],[-84.19041,22.192885],[-84.207088,22.084491],[-84.056984,22.00945],[-84.031967,22.192885],[-83.840167,22.201223],[-83.798471,22.134519],[-83.790132,22.201223],[-83.61501,22.201223],[-83.573315,22.05114],[-83.398193,22.017788],[-83.406532,21.784325],[-83.531619,21.767649],[-83.665045,21.617565],[-83.831828,21.617565],[-83.840167,21.742635],[-83.948575,21.750973],[-83.990271,21.867704],[-84.056984,21.867704],[-84.365532,21.534186]],[[-82.239055,21.750973],[-82.063933,21.750973],[-82.055594,21.742635],[-82.055594,21.575875],[-82.063933,21.567538],[-82.063933,21.400778],[-82.072272,21.39244],[-82.247394,21.39244],[-82.255733,21.400778],[-82.255733,21.600889],[-82.247394,21.609227],[-82.247394,21.742635],[-82.239055,21.750973]]]}},{"type":"Feature","properties":{"kind":"land"},"geometry":{"type":"Polygon","coordinates":[[[-82.772759,23.476932],[-82.781098,23.48527],[-82.797776,23.48527],[-82.822794,23.510283],[-82.847811,23.510283],[-82.85615,23.518621],[-82.939541,23.518621],[-82.964559,23.543635],[-82.981237,23.576987],[-83.022933,23.576987],[-83.031272,23.568649],[-83.064628,23.560311],[-83.072967,23.543635],[-83.072967,23.518621],[-83.081306,23.510283],[-83.13968,23.48527],[-83.189715,23.48527],[-83.198054,23.468594],[-83.23975,23.451918],[-83.256428,23.426904],[-83.256428,23.385214],[-83.23975,23.3602],[-83.214732,23.351862],[-83.198054,23.335186],[-83.131341,23.335186],[-83.123002,23.326848],[-83.089646,23.326848],[-83.081306,23.335186],[-83.022933,23.335186],[-83.014593,23.343524],[-82.95622,23.351862],[-82.922863,23.376876],[-82.897846,23.376876],[-82.872828,23.393552],[-82.85615,23.393552],[-82.822794,23.426904],[-82.806115,23.426904],[-82.772759,23.44358],[-82.772759,23.476932]]]}},{"type":"Feature","properties":{"kind":"land"},"geometry":{"type":"Polygon","coordinates":[[[-84.207088,28.904947],[-84.232106,28.879933],[-84.232106,28.829906],[-84.19041,28.746526],[-84.157054,28.721512],[-84.157054,28.554753],[-84.173732,28.521401],[-84.207088,28.488049],[-84.265462,28.471373],[-84.265462,28.396331],[-84.223767,28.396331],[-84.182071,28.446359],[-83.99861,28.446359],[-83.981932,28.421345],[-83.940236,28.421345],[-83.915219,28.454697],[-83.915219,28.504725],[-83.940236,28.521401],[-83.973593,28.521401],[-83.981932,28.529739],[-83.981932,28.588105],[-84.015288,28.629794],[-84.048645,28.629794],[-84.056984,28.638132],[-84.056984,28.804892],[-84.040306,28.829906],[-84.048645,28.888271],[-84.082001,28.904947],[-84.207088,28.904947]]]}},{"type":"Feature","properties":{"kind":"land"},"geometry":{"type":"Polygon","coordinates":[[[-84.890896,30.389105],[-84.840862,29.67204],[-84.882557,29.563646],[-84.907575,29.296832],[-85.007644,29.26348],[-85.066018,29.038355],[-85.007644,28.996665],[-84.899236,28.563091],[-84.85754,28.529739],[-84.76581,28.529739],[-84.76581,28.738188],[-84.674079,28.746526],[-84.690757,28.879933],[-84.799166,28.896609],[-84.882557,29.038355],[-84.874218,29.288494],[-84.815844,29.296832],[-84.674079,29.463591],[-84.674079,29.872151],[-84.498958,29.880489],[-84.482279,29.813785],[-84.348853,29.697054],[-84.365532,29.455253],[-84.307158,29.471929],[-84.248784,29.596998],[-84.248784,29.722068],[-84.28214,29.747082],[-84.290479,29.838799],[-84.365532,29.880489],[-84.415566,30.038911],[-84.523975,30.063924],[-84.540653,29.997221],[-84.715775,30.005559],[-84.75747,30.055586],[-84.790827,30.355753],[-84.890896,30.389105]]]}},{"type":"Feature","properties":{"kind":"land"},"geometry":{"type":"Polygon","coordinates":[[[-82.439194,32.715397],[-82.489229,32.715397],[-82.564281,32.632018],[-82.656011,32.456921],[-82.706046,32.265147],[-82.789437,32.190106],[-82.881167,31.989994],[-82.95622,31.981656],[-82.95622,31.889939],[-83.089646,31.748193],[-83.181376,31.706504],[-83.389854,31.706504],[-83.514941,31.648138],[-83.80681,31.614786],[-83.848506,31.564758],[-84.19041,31.564758],[-84.257123,31.481379],[-84.257123,31.431351],[-83.898541,31.531406],[-83.381515,31.51473],[-83.306463,31.648138],[-83.13968,31.648138],[-83.106324,31.59811],[-83.022933,31.573096],[-82.539263,31.55642],[-82.530924,31.59811],[-82.405837,31.689828],[-82.397498,31.789883],[-82.230716,31.989994],[-82.239055,32.031684],[-82.364142,32.031684],[-82.430855,32.073374],[-82.414177,32.290161],[-82.48089,32.431907],[-82.48089,32.598666],[-82.439194,32.715397]]]}},{"type":"Feature","properties":{"kind":"land"},"geometry":{"type":"Polygon","coordinates":[[[-80.646282,34.799889],[-82.088951,33.357421],[-82.197359,32.723735],[-81.838777,32.515286],[-82.197359,31.423013],[-84.415566,30.856031],[-83.80681,30.272374],[-82.714385,30.372429],[-83.564976,29.555309],[-83.356498,29.171762],[-82.95622,29.655364],[-82.489229,29.521957],[-83.539958,28.463035],[-82.76442,27.537521],[-83.298124,27.387437],[-83.022933,26.578655],[-84.165393,26.662034],[-84.38221,27.954419],[-84.557331,27.229016],[-84.123697,26.261812],[-83.281445,26.303502],[-82.622655,25.786548],[-82.489229,24.669261],[-81.988881,24.46915],[-82.414177,24.052251],[-81.938846,24.043913],[-81.730368,23.451918],[-80.362752,22.526404],[-80.446143,22.184547],[-79.687283,22.084491],[-78.886727,22.701501],[-79.879083,20.94219],[-78.611536,21.934408],[-77.894371,21.959422],[-78.436414,22.042802],[-78.820014,23.193441],[-78.069493,22.984992],[-78.353023,22.476376],[-78.061154,22.4597],[-77.460737,24.294052],[-76.151494,24.969427],[-75.784573,25.69483],[-75.134121,25.344636],[-74.917304,28.596442],[-76.051425,29.872151],[-75.217512,30.147304],[-76.159833,30.155642],[-76.343294,30.672596],[-76.109798,32.13174],[-76.743572,31.197888],[-76.710215,31.756531],[-77.33565,32.198444],[-76.768589,32.481934],[-77.410702,32.49861],[-77.669215,33.799333],[-78.603197,34.616454],[-79.3287,34.54975],[-79.562196,34.024458],[-80.596247,33.999444],[-80.712995,33.140634],[-81.038221,33.148972],[-81.363447,33.874375],[-80.246004,34.666481],[-80.646282,34.799889]],[[-80.988186,23.535297],[-80.946491,23.535297],[-80.921473,23.560311],[-80.746352,23.560311],[-80.738013,23.551973],[-80.738013,23.260145],[-80.746352,23.251807],[-80.929812,23.251807],[-80.938151,23.260145],[-80.938151,23.293496],[-80.979847,23.335186],[-80.979847,23.351862],[-80.996525,23.3602],[-80.996525,23.526959],[-80.988186,23.535297]],[[-78.945101,23.777098],[-78.870049,23.843802],[-78.686588,23.843802],[-78.678249,23.802112],[-78.394719,23.81045],[-78.386379,23.535297],[-78.703266,23.526959],[-78.711605,23.593663],[-78.744962,23.593663],[-78.76164,23.551973],[-78.928423,23.551973],[-78.945101,23.576987],[-78.945101,23.777098]],[[-80.579569,23.85214],[-80.529534,23.910506],[-80.329395,23.902168],[-80.279361,23.85214],[-80.254343,23.710395],[-80.087561,23.702057],[-80.087561,23.526959],[-80.629604,23.518621],[-80.637943,23.702057],[-80.579569,23.85214]],[[-81.780403,24.185659],[-81.596942,24.185659],[-81.463516,24.102279],[-81.396803,24.093941],[-81.396803,23.918844],[-81.305073,23.827126],[-81.196664,23.827126],[-81.163308,23.785436],[-81.104934,23.777098],[-81.079917,23.635353],[-81.088256,23.460256],[-81.255038,23.460256],[-81.338429,23.560311],[-81.413482,23.568649],[-81.421821,23.660367],[-81.530229,23.660367],[-81.588603,23.727071],[-81.655316,23.727071],[-81.697012,23.793774],[-81.755386,23.793774],[-81.772064,23.835464],[-81.830438,23.85214],[-81.830438,24.035575],[-81.797081,24.043913],[-81.780403,24.185659]],[[-81.988881,25.261256],[-81.822099,25.261256],[-81.772064,25.236242],[-81.738707,25.086159],[-81.663655,25.069483],[-81.663655,24.969427],[-81.530229,24.961089],[-81.530229,24.744302],[-81.405142,24.735964],[-81.371786,24.610895],[-81.305073,24.569205],[-81.305073,24.402446],[-81.355108,24.394108],[-81.405142,24.327404],[-81.596942,24.327404],[-81.605281,24.485825],[-81.663655,24.569205],[-81.663655,24.735964],[-81.705351,24.735964],[-81.763725,24.79433],[-81.763725,24.844358],[-81.980542,24.869372],[-81.988881,25.261256]],[[-76.635163,25.444691],[-76.626824,25.453029],[-76.368311,25.453029],[-76.359972,25.444691],[-76.359972,25.24458],[-76.368311,25.236242],[-76.418346,25.236242],[-76.460042,25.194553],[-76.626824,25.194553],[-76.635163,25.20289],[-76.635163,25.444691]],[[-77.160528,25.86159],[-77.152189,25.711506],[-76.985407,25.669817],[-76.985407,25.503057],[-77.177206,25.428016],[-77.327311,25.428016],[-77.327311,25.194553],[-77.060459,24.9194],[-77.05212,24.735964],[-77.193885,24.535853],[-77.202224,24.435798],[-77.377345,24.435798],[-77.477415,24.38577],[-77.477415,24.310728],[-77.71091,24.285714],[-77.727589,24.46915],[-77.602502,24.502501],[-77.602502,24.544191],[-77.777623,24.75264],[-77.777623,24.927738],[-77.61918,24.936076],[-77.577484,24.986103],[-77.577484,25.061145],[-77.52745,25.094497],[-77.52745,25.386326],[-77.352328,25.41134],[-77.33565,25.853252],[-77.160528,25.86159]],[[-76.109798,26.036687],[-76.026407,26.045025],[-75.943016,26.070039],[-75.709521,26.070039],[-75.701181,26.061701],[-75.709521,25.803224],[-75.71786,25.794886],[-76.034746,25.794886],[-76.043085,25.8199],[-76.068103,25.828238],[-76.109798,25.869928],[-76.109798,26.036687]],[[-82.714385,26.303502],[-82.706046,26.31184],[-82.355803,26.303502],[-82.347464,26.295164],[-82.347464,26.128405],[-82.355803,26.120067],[-82.455872,26.120067],[-82.464211,26.111729],[-82.706046,26.111729],[-82.714385,26.120067],[-82.714385,26.303502]],[[-75.484364,26.328516],[-75.476025,26.336854],[-75.300903,26.336854],[-75.225851,26.295164],[-75.159138,26.220122],[-75.125782,26.203446],[-75.125782,26.036687],[-75.134121,26.028349],[-75.476025,26.028349],[-75.484364,26.036687],[-75.484364,26.328516]],[[-81.154969,26.570317],[-81.163308,26.361868],[-81.405142,26.370206],[-81.555247,26.295164],[-81.738707,26.295164],[-81.788742,26.370206],[-81.913829,26.39522],[-81.913829,26.578655],[-81.880473,26.620345],[-81.271716,26.628683],[-81.221682,26.578655],[-81.154969,26.570317]],[[-75.867964,26.753752],[-75.859625,26.76209],[-75.801251,26.76209],[-75.792912,26.778766],[-75.609451,26.778766],[-75.592773,26.76209],[-75.592773,26.712062],[-75.567755,26.670372],[-75.567755,26.503613],[-75.576095,26.495275],[-75.742877,26.495275],[-75.792912,26.553641],[-75.842946,26.561979],[-75.867964,26.586993],[-75.867964,26.753752]],[[-76.251564,26.88716],[-76.184851,26.76209],[-76.109798,26.737076],[-76.109798,26.511951],[-76.326616,26.495275],[-76.485059,26.595331],[-76.743572,26.603669],[-76.768589,26.303502],[-76.618485,26.22846],[-76.601807,26.161757],[-76.251564,26.061701],[-76.243224,25.886604],[-76.601807,25.86159],[-76.610146,25.611451],[-76.918694,25.611451],[-76.927033,25.786548],[-76.701876,25.869928],[-76.710215,26.028349],[-76.993746,26.153419],[-76.95205,26.536965],[-76.918694,26.586993],[-76.801946,26.586993],[-76.801946,26.787104],[-76.718555,26.928849],[-76.251564,26.88716]],[[-76.051425,27.062257],[-75.951355,27.145636],[-75.784573,27.145636],[-75.776233,27.137298],[-75.776233,26.903835],[-75.784573,26.895497],[-75.867964,26.895497],[-75.876303,26.88716],[-76.043085,26.88716],[-76.051425,26.895497],[-76.051425,27.062257]],[[-75.909659,28.162868],[-75.701181,28.162868],[-75.692842,28.079489],[-75.642808,28.054475],[-75.642808,27.846026],[-75.692842,27.795998],[-75.701181,27.729294],[-75.842946,27.720956],[-75.842946,27.679266],[-75.801251,27.645914],[-75.801251,27.312396],[-75.976372,27.312396],[-76.059764,27.345748],[-76.034746,27.70428],[-75.884642,27.712618],[-75.884642,27.904391],[-75.917999,27.979433],[-75.909659,28.162868]],[[-76.043085,28.387993],[-76.034746,28.23791],[-75.984712,28.171206],[-75.993051,27.996109],[-76.243224,27.971095],[-76.251564,28.029461],[-76.351633,28.037799],[-76.418346,27.904391],[-76.801946,27.871039],[-76.726894,27.479155],[-76.66852,27.462479],[-76.66852,27.29572],[-76.885337,27.270706],[-76.910354,27.504169],[-76.993746,27.537521],[-77.010424,27.896053],[-76.826963,27.904391],[-76.826963,28.11284],[-76.635163,28.129516],[-76.526755,28.246248],[-76.501737,28.396331],[-76.043085,28.387993]],[[-80.212648,28.488049],[-79.937457,28.471373],[-79.862404,28.446359],[-79.820709,28.354641],[-79.737318,28.354641],[-79.695622,28.32129],[-79.695622,28.15453],[-79.745657,28.146192],[-79.745657,28.11284],[-79.678944,28.104503],[-79.678944,27.987771],[-79.603892,27.887715],[-79.603892,27.70428],[-79.637248,27.66259],[-79.837387,27.654252],[-79.879083,27.695942],[-80.0959,27.720956],[-80.104239,27.846026],[-80.204309,27.846026],[-80.220987,27.754308],[-80.387769,27.754308],[-80.396108,27.804336],[-80.487839,27.812674],[-80.487839,27.979433],[-80.2877,27.987771],[-80.2877,28.15453],[-80.204309,28.162868],[-80.212648,28.488049]],[[-76.701876,28.663146],[-76.510076,28.671484],[-76.47672,28.64647],[-76.343294,28.613118],[-76.226546,28.613118],[-76.218207,28.438021],[-76.493398,28.429683],[-76.660181,28.454697],[-76.701876,28.479711],[-76.701876,28.663146]],[[-78.678249,28.81323],[-78.66991,28.821568],[-78.494788,28.821568],[-78.486449,28.81323],[-78.403058,28.804892],[-78.386379,28.788216],[-78.386379,28.596442],[-78.403058,28.579767],[-78.661571,28.579767],[-78.678249,28.596442],[-78.678249,28.81323]],[[-82.714385,30.772651],[-82.706046,30.680934],[-82.681028,30.664258],[-82.689368,30.480823],[-83.256428,30.489161],[-83.256428,30.664258],[-83.23975,30.7393],[-83.031272,30.7393],[-83.022933,30.689272],[-82.989576,30.689272],[-82.964559,30.714286],[-82.95622,30.755976],[-82.889507,30.780989],[-82.714385,30.772651]],[[-82.622655,30.839355],[-82.405837,30.839355],[-82.397498,30.831017],[-82.397498,30.7393],[-82.364142,30.730962],[-82.364142,30.555864],[-82.397498,30.53085],[-82.564281,30.53085],[-82.580959,30.547526],[-82.622655,30.547526],[-82.630994,30.555864],[-82.630994,30.831017],[-82.622655,30.839355]],[[-78.269632,31.272929],[-78.052814,31.056142],[-77.994441,30.872707],[-77.994441,30.622568],[-78.111188,30.605892],[-78.127867,30.430795],[-78.411397,30.147304],[-78.711605,30.138966],[-78.786657,30.180656],[-78.786657,30.322401],[-78.85337,30.364091],[-78.870049,30.630906],[-78.19458,30.639244],[-78.211258,30.7393],[-78.903405,30.69761],[-78.945101,31.081156],[-78.469771,31.272929],[-78.269632,31.272929]],[[-81.755386,33.107282],[-81.613621,33.107282],[-81.596942,33.123958],[-81.396803,33.11562],[-81.405142,32.773763],[-81.438499,32.732073],[-81.605281,32.732073],[-81.62196,32.798777],[-81.780403,32.807115],[-81.772064,33.090606],[-81.755386,33.107282]],[[-79.303683,33.849361],[-79.253648,33.874375],[-79.228631,33.907727],[-79.011814,33.899389],[-78.936762,33.832685],[-78.936762,33.657588],[-78.945101,33.64925],[-79.120222,33.64925],[-79.128562,33.657588],[-79.295344,33.674263],[-79.303683,33.682601],[-79.303683,33.849361]],[[-78.828353,34.416342],[-78.744962,34.449694],[-78.56984,34.449694],[-78.561501,34.291273],[-78.536484,34.274597],[-78.411397,34.266259],[-78.419736,33.941078],[-78.444753,33.874375],[-78.653231,33.874375],[-78.661571,34.066148],[-78.878388,34.124514],[-78.878388,34.291273],[-78.845031,34.324625],[-78.845031,34.391329],[-78.828353,34.416342]]]}}]};
+
+const MAP_THEMES={
+ standard:{
+  water:"#0c5aa6", land:"#c6d4c0", landOutline:"#101418", road:"#23272b", roadMinor:"#51575d", urban:"#d5d4d7"
+ },
+ dark:{
+  water:"#3b4b53", land:"#171717", landOutline:"#b9c0c4", road:"#e1e3e5", roadMinor:"#81878c", urban:"#26282b"
+ }
+};
+let mapTheme="standard";
+
+const blankStyle={version:8,sources:{},layers:[{id:"bg",type:"background",paint:{"background-color":MAP_THEMES.standard.water}}]};
+
+// Primeiras vias vetoriais demonstrativas. Elas servem para validar a arquitetura de estilo.
+// A malha viária completa será substituída por dados vetoriais próprios depois.
+const ROAD_DEMO={
+ type:"FeatureCollection",
+ features:[
+  {type:"Feature",properties:{class:"major"},geometry:{type:"LineString",coordinates:[[-84.3,30.9],[-82.9,31.2],[-81.5,31.0],[-80.2,30.2],[-78.8,29.5],[-76.9,29.1]]}},
+  {type:"Feature",properties:{class:"major"},geometry:{type:"LineString",coordinates:[[-84.1,28.7],[-82.7,28.2],[-81.3,27.5],[-79.9,27.2],[-78.4,27.0],[-76.7,26.8]]}},
+  {type:"Feature",properties:{class:"major"},geometry:{type:"LineString",coordinates:[[-80.8,33.4],[-80.6,31.8],[-80.5,30.2],[-80.2,28.5],[-79.7,26.7],[-79.3,24.8],[-79.0,22.8]]}},
+  {type:"Feature",properties:{class:"major"},geometry:{type:"LineString",coordinates:[[-77.8,33.3],[-77.9,31.7],[-77.8,30.0],[-77.4,28.1],[-76.9,26.1],[-76.4,24.1]]}},
+  {type:"Feature",properties:{class:"minor"},geometry:{type:"LineString",coordinates:[[-83.2,26.5],[-82.2,27.2],[-81.2,28.0],[-80.3,28.8],[-79.2,29.3]]}},
+  {type:"Feature",properties:{class:"minor"},geometry:{type:"LineString",coordinates:[[-82.5,32.5],[-81.7,31.6],[-81.0,30.6],[-80.1,29.8],[-79.0,29.0],[-78.0,28.3]]}}
+ ]
+};
+
+function isMobileMap(){
+ return matchMedia("(max-width:899px), (orientation:portrait)").matches;
+}
+function mapViewportPadding(){
+ // A visão geral deve priorizar enxergar Leonida inteira. A UI fica sobre o mapa,
+ // então não reservamos uma faixa enorme à esquerda no desktop.
+ if(isMobileMap()) return {top:132,bottom:54,left:16,right:16};
+ return {top:24,bottom:24,left:26,right:26};
+}
+function fitWholeMap(duration=0){
+ if(!BaseMap.map)return;
+ const m=BaseMap.map;
+ // v6.2: calcula a câmera diretamente com o tamanho REAL do canvas já visível.
+ // Isso evita o enquadramento apertado que o fitBounds estava produzindo no desktop.
+ m.resize();
+ const cam=m.cameraForBounds(CONFIG.mapBounds,{padding:isMobileMap()?18:8,maxZoom:4.2});
+ if(!cam)return;
+ const extraOut=isMobileMap()?0.38:1.30;
+ const targetZoom=Math.max(m.getMinZoom(),cam.zoom-extraOut);
+ m.easeTo({center:cam.center,zoom:targetZoom,pitch:0,bearing:0,duration,essential:true});
+}
+
+function applyMapTheme(name){
+ mapTheme=name;
+ const t=MAP_THEMES[name]||MAP_THEMES.standard;
+ const m=BaseMap.map;if(!m)return;
+ if(m.getLayer("bg"))m.setPaintProperty("bg","background-color",t.water);
+ if(m.getLayer("land-fill"))m.setPaintProperty("land-fill","fill-color",t.land);
+ if(m.getLayer("land-outline"))m.setPaintProperty("land-outline","line-color",t.landOutline);
+ if(m.getLayer("roads-major"))m.setPaintProperty("roads-major","line-color",t.road);
+ if(m.getLayer("roads-minor"))m.setPaintProperty("roads-minor","line-color",t.roadMinor);
+ document.querySelectorAll("#stylePanel [data-style]").forEach(b=>b.classList.toggle("on",b.dataset.style===name));
+ localStorage.setItem("viceearth.mapStyle",name);
+}
+
+const BaseMap={
+ map:null,
+ async load(){
+  this.map=new maplibregl.Map({
+   container:"map",style:blankStyle,center:CONFIG.center,zoom:CONFIG.zoom,pitch:0,bearing:0,
+   attributionControl:false,renderWorldCopies:false,minZoom:0.6,maxZoom:11,maxPitch:60,
+   maxBounds:[[VECTOR_BOUNDS[0][0]-1,VECTOR_BOUNDS[0][1]-1],[VECTOR_BOUNDS[1][0]+1,VECTOR_BOUNDS[1][1]+1]],
+   dragRotate:false,pitchWithRotate:false
+  });
+  this.map.touchZoomRotate.disableRotation();
+  if(this.map.keyboard?.disableRotation)this.map.keyboard.disableRotation();
+  await new Promise(ok=>{this.map.once("load",ok);setTimeout(ok,3000)});
+
+  this.map.addSource("vice-land",{type:"geojson",data:VECTOR_BASE});
+  this.map.addLayer({id:"land-fill",type:"fill",source:"vice-land",paint:{"fill-color":MAP_THEMES.standard.land,"fill-opacity":1}});
+  this.map.addLayer({id:"land-outline",type:"line",source:"vice-land",paint:{"line-color":MAP_THEMES.standard.landOutline,"line-width":["interpolate",["linear"],["zoom"],3,.7,8,2.2],"line-opacity":.9}});
+
+  this.map.addSource("vice-roads",{type:"geojson",data:ROAD_DEMO});
+  this.map.addLayer({id:"roads-minor",type:"line",source:"vice-roads",filter:["==",["get","class"],"minor"],paint:{"line-color":MAP_THEMES.standard.roadMinor,"line-width":["interpolate",["linear"],["zoom"],3,.7,9,2.2],"line-opacity":.7}});
+  this.map.addLayer({id:"roads-major",type:"line",source:"vice-roads",filter:["==",["get","class"],"major"],paint:{"line-color":MAP_THEMES.standard.road,"line-width":["interpolate",["linear"],["zoom"],3,1.2,9,4.2],"line-opacity":.9}});
+
+  applyMapTheme(localStorage.getItem("viceearth.mapStyle")||"standard");
+  fitWholeMap(0);
+  return this.map;
+ },
+ fly(lon,lat,zoom=7){this.map.flyTo({center:[lon,lat],zoom:Math.min(11,zoom),pitch:this.map.getPitch(),bearing:0,duration:1150,essential:true})},
+ home(){fitWholeMap(750)},
+ set3D(on){this.map.easeTo({pitch:on?48:0,bearing:0,duration:650,essential:true})}
+};
+
+
+const COR={Lugares:"#ff3ec8",Veículos:"#7a6bff",Atividades:"#ffc233",Propriedades:"#27d3ff",Segredos:"#37e07a",Colecionáveis:"#b48cff",Serviços:"#ff9955",country:"#ffffff",region:"#ff3ec8",city:"#c9a7ff",district:"#8fd3ff",poi:"#ff3ec8",discovery:"#ff3ec8"};
+const Markers={all:[],cat:null,src:{type:"FeatureCollection",features:[]},init(map){this.map=map;map.addSource("places",{type:"geojson",data:this.src,cluster:true,clusterMaxZoom:7,clusterRadius:48});
+ map.addLayer({id:"clusters",type:"circle",source:"places",filter:["has","point_count"],paint:{"circle-color":"#1a0d33","circle-radius":["step",["get","point_count"],16,10,20,30,25],"circle-stroke-color":"#ff3ec8","circle-stroke-width":2}});
+ map.addLayer({id:"cluster-count",type:"symbol",source:"places",filter:["has","point_count"],layout:{"text-field":["get","point_count_abbreviated"],"text-size":12},paint:{"text-color":"#fff"}});
+ map.addLayer({id:"points",type:"circle",source:"places",filter:["!",["has","point_count"]],paint:{"circle-radius":["interpolate",["linear"],["zoom"],3,5,8,12],"circle-color":["get","color"],"circle-stroke-width":2,"circle-stroke-color":"#fff"}});
+ map.addLayer({id:"point-icons",type:"symbol",source:"places",filter:["all",["!",["has","point_count"]],["any",["==",["get","kind"],"poi"],["==",["get","kind"],"discovery"]]],layout:{"text-field":["match",["get","category"],"Veículos","🚗","Atividades","★","Propriedades","🏠","Segredos","👁","●"],"text-size":["interpolate",["linear"],["zoom"],7,12,11,18],"text-allow-overlap":true},paint:{"text-color":"#ffffff","text-halo-color":"#080b19","text-halo-width":1}});
+ map.addLayer({id:"labels",type:"symbol",source:"places",filter:["!",["has","point_count"]],minzoom:4.2,layout:{"text-field":["get","name"],"text-font":["Open Sans Semibold"],"text-size":["interpolate",["linear"],["zoom"],4,11,8,14],"text-offset":[0,1.25],"text-anchor":"top","text-allow-overlap":false},paint:{"text-color":"#fff","text-halo-color":"#09050f","text-halo-width":2}});
+ map.on("click","clusters",async e=>{const f=e.features&&e.features[0];if(!f)return;const id=f.properties.cluster_id;const z=await map.getSource("places").getClusterExpansionZoom(id);map.easeTo({center:f.geometry.coordinates,zoom:z,duration:500})});
+ map.on("click","point-icons",e=>{const f=e.features&&e.features[0];if(!f)return;const p=this.all.find(x=>x.id===f.properties.id);if(p)select(p)});
+ map.on("click","points",e=>{const f=e.features&&e.features[0];if(!f)return;const p=this.all.find(x=>x.id===f.properties.id);if(p)select(p)});
+ ["clusters","points","point-icons"].forEach(id=>{map.on("mouseenter",id,()=>map.getCanvas().style.cursor="pointer");map.on("mouseleave",id,()=>map.getCanvas().style.cursor="")});
+ },
+ add(p){this.all.push(p);this.refresh()},
+ refresh(){if(!this.map||!this.map.getSource("places"))return;const z=this.map.getZoom();this.src.features=this.all.filter(p=>{const visible=p.kind==="country"?z<4.5:p.kind==="region"?z>=3.7&&z<6.1:p.kind==="city"||p.kind==="district"?z>=5.6&&z<8.1:z>=7.2;return visible&&(!this.cat||p.kind!=="poi"&&p.kind!=="discovery"||p.category===this.cat)}).map(p=>({type:"Feature",properties:{id:p.id,name:p.name,kind:p.kind,category:p.category||"",color:COR[p.category]||COR[p.kind]||"#ff3ec8"},geometry:{type:"Point",coordinates:[p.lon,p.lat]}}));this.map.getSource("places").setData(this.src)},
+ fly(p){BaseMap.fly(p.lon,p.lat,p.zoom||14)}
+};
+
+const KIND={country:"Estado",region:"Região",city:"Cidade",district:"Bairro",poi:"Ponto de interesse",discovery:"Descoberta"};
+const byId={};let saved=new Set();
+function item(p){const b=document.createElement("button");b.className="item";const sub=p.kind==="region"?p.d:KIND[p.kind]+(p.parent&&byId[p.parent]?" · "+byId[p.parent].name:"");b.innerHTML=`<span class="th" style="background:${p.g}">${p.e}</span><div><b>${esc(p.name)}</b><div class="mu">${esc(sub)}</div></div>`;return b}
+function list(box,arr,onPick){box.innerHTML="";arr.forEach(p=>{const b=item(p);b.onclick=()=>onPick(p);box.appendChild(b)});if(!arr.length)box.innerHTML='<div class="mu" style="padding:10px">Nada por aqui ainda.</div>'}
+function select(p){$("#drawer").style.display="none";$("#res").style.display="none";const s=$("#sheet"),par=p.parent&&byId[p.parent];s.style.display="block";s.innerHTML=`<div class="sheet-grip"></div><div class="sheet-art" style="background:${p.g}"><span class="art-icon">${p.e}</span><span class="art-note">Prévia ilustrativa · demonstração</span><button id="closeSheet" aria-label="Fechar informações">×</button></div><div class="sheet-title"><h2>${esc(p.name)}</h2><span class="demo-pill">◉ Demo</span></div><div class="sheet-meta">⌖ ${par?esc(par.name):"Leonida"} <span>·</span> ${KIND[p.kind]}</div><p class="sheet-desc">${esc(p.d)}</p><div class="row2"><button id="vm">⌖ &nbsp;Ver no mapa</button><button class="pri" id="sv">${saved.has(p.id)?"✓ Salvo":"♧ &nbsp;Salvar"}</button></div>`;$("#closeSheet").onclick=()=>s.style.display="none";$("#vm").onclick=()=>Markers.fly(p);$("#sv").onclick=e=>{saved.has(p.id)?saved.delete(p.id):saved.add(p.id);DataSource.setSaved(saved);e.target.textContent=saved.has(p.id)?"✓ Salvo":"♧ Salvar"};Markers.fly(p)}
+
+let mapReady=false,phase="splash",adding=false,is3D=false;
+async function bootMap(){if(mapReady)return;try{const map=await BaseMap.load();saved=DataSource.savedIds();Markers.init(map);(await DataSource.list()).forEach(p=>{byId[p.id]=p;Markers.add(p)});map.on("zoomend",()=>Markers.refresh());map.on("moveend",()=>Markers.refresh());
+ ["Lugares","Veículos","Atividades","Propriedades","Segredos","Colecionáveis","Serviços"].forEach(c=>{const b=document.createElement("button");b.className="pill";b.innerHTML=({"Lugares":'<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',"Veículos":'<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><path d="m5 17-1 2v2M19 17l1 2v2M5 17H3v-6l2-5a2 2 0 0 1 2-1h10a2 2 0 0 1 2 1l2 5v6h-2M5 17h14M3 11h18M7 14h.01M17 14h.01"/></svg>',"Atividades":'<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><path d="m12 2 3.1 6.4 7.1 1-5.1 5 1.2 7-6.3-3.3-6.3 3.3 1.2-7-5.1-5 7.1-1Z"/></svg>',"Propriedades":'<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z"/><path d="M9 21v-7h6v7"/></svg>',"Serviços":'<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><path d="M3 10h18l-2-7H5l-2 7ZM5 10v11h14V10M9 21v-7h6v7"/></svg>',"Colecionáveis":'<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><path d="M6 3h12l4 6-10 12L2 9Z"/><path d="M2 9h20M8 3l-2 6 6 12 6-12-2-6"/></svg>',"Segredos":'<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>'}[c]||"")+"<span>"+c+"</span>";b.dataset.category=c;b.onclick=()=>{Markers.cat=Markers.cat===c?null:c;[...$("#chips").children].forEach(x=>x.classList.toggle("on",x.dataset.category===Markers.cat));Markers.refresh()};$("#chips").appendChild(b)});
+ const firstChip=$("#chips").querySelector("[data-category=\"Lugares\"]");if(firstChip)firstChip.classList.add("on");
+ map.on("click",e=>{if(!adding)return;adding=false;const n=prompt("Nome da descoberta:");if(!n)return;const p={id:"u"+Date.now(),name:n.slice(0,60),kind:"discovery",category:"Lugares",parent:null,lon:e.lngLat.lng,lat:e.lngLat.lat,zoom:15,d:"Descoberta adicionada por você (experimental, salva só neste aparelho).",e:"📍",g:G("#ff3ec8","#4a1b7a"),placeholder:false};DataSource.add(p);byId[p.id]=p;Markers.add(p);toast("Descoberta adicionada");Markers.fly(p)});
+ mapReady=true;
+ if(!window.__viceEarthMapResizeBound){
+  window.__viceEarthMapResizeBound=true;
+  let rt;
+  const refit=()=>{clearTimeout(rt);rt=setTimeout(()=>{if(mapReady&&phase==="app"){BaseMap.map.resize();fitWholeMap(250)}},180)};
+  addEventListener("resize",refit);addEventListener("orientationchange",refit);
+ }
+ }catch(e){console.error(e);toast("Não foi possível iniciar o mapa")}}
+
+async function enter(after){if(phase!=="splash")return;phase="entering";const splash=$("#splash"),app=$("#app");splash.classList.add("transitioning");await bootMap();setTimeout(()=>{document.body.classList.add("map-active");app.style.display="block";requestAnimationFrame(()=>{app.classList.add("t1");setTimeout(()=>app.classList.add("t2"),260)});splash.classList.add("out");setTimeout(()=>{splash.style.display="none";splash.classList.remove("transitioning");phase="app";if(mapReady){BaseMap.map.resize();fitWholeMap(380)}if(after)after()},880)},420)}
+function returnHome(){if(phase!=="app")return;phase="returning";["#sheet","#drawer","#res"].forEach(s=>$(s).style.display="none");const splash=$("#splash"),app=$("#app");app.classList.remove("t1","t2");splash.style.display="block";requestAnimationFrame(()=>{splash.classList.remove("out");document.body.classList.remove("map-active")});setTimeout(()=>{app.style.display="none";phase="splash"},900)}
+
+$("#go").onclick=()=>enter();$("#s0").onclick=()=>enter(()=>$("#q").focus());$("#back").onclick=returnHome;
+$("#q").oninput=e=>{const t=e.target.value.toLowerCase().trim(),r=$("#res");if(!t){r.style.display="none";return}list(r,Markers.all.filter(p=>p.name.toLowerCase().includes(t)||(p.category||"").toLowerCase().includes(t)),select);r.style.display="block"};
+const openList=(title,arr)=>{$("#dt").textContent=title;list($("#reg"),arr,select);$("#drawer").style.display="block"};
+$("#menu").onclick=()=>openList("Explorar regiões",Markers.all.filter(p=>p.kind==="region"));$("#x").onclick=()=>$("#drawer").style.display="none";
+document.querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>{const o=b.dataset.o;if(o==="saved"){$("#dt").textContent="Salvos";list($("#reg"),Markers.all.filter(p=>saved.has(p.id)),select)}else if(o==="add"){adding=true;$("#drawer").style.display="none";toast("Toque no mapa para marcar a descoberta")}else toast("Em breve")});
+$("#styleBtn").onclick=()=>$("#stylePanel").classList.toggle("open");
+document.querySelectorAll("#stylePanel [data-style]").forEach(b=>b.onclick=()=>{applyMapTheme(b.dataset.style);$("#stylePanel").classList.remove("open")});
+$("#overview").onclick=()=>{if(mapReady){is3D=false;$("#tilt").textContent="3D";BaseMap.home()}};
+$("#zi").onclick=()=>mapReady&&BaseMap.map.zoomIn({duration:300});
+$("#zo").onclick=()=>mapReady&&BaseMap.map.zoomOut({duration:300});
+$("#tilt").onclick=()=>{if(!mapReady)return;is3D=!is3D;BaseMap.set3D(is3D);$("#tilt").textContent=is3D?"2D":"3D"};
+</script>
+
+<style id="vice-v611-visible-feedback">
+/* Visible and briefly held feedback even on very quick Android taps. */
+button,.pill,[role="button"]{position:relative;-webkit-tap-highlight-color:transparent!important}
+button.vice-pressed,.pill.vice-pressed,[role="button"].vice-pressed{
+ transform:scale(.92)!important;
+ filter:brightness(1.35)!important;
+ box-shadow:0 0 0 2px rgba(255,112,219,.7),0 0 22px rgba(255,45,183,.45)!important;
+ transition:transform 90ms ease-out,filter 90ms,box-shadow 90ms!important;
+}
+#chips .pill.vice-pressed{transform:scale(.94)!important}
+</style>
+<script id="vice-v611-feedback">
+(()=>{
+ const pressed=new WeakMap();
+ const find=(target)=>target?.closest?.('button,.pill,[role="button"]');
+ const on=(el)=>{
+   if(!el || el.disabled)return;
+   clearTimeout(pressed.get(el));
+   el.classList.add('vice-pressed');
+   pressed.set(el,setTimeout(()=>el.classList.remove('vice-pressed'),240));
+ };
+ document.addEventListener('pointerdown',e=>{if(e.button!==0)return;on(find(e.target))},{passive:true,capture:true});
+ document.addEventListener('pointerup',e=>{const el=find(e.target);if(!el)return;clearTimeout(pressed.get(el));pressed.set(el,setTimeout(()=>el.classList.remove('vice-pressed'),170))},{passive:true,capture:true});
+ document.addEventListener('pointercancel',e=>{const el=find(e.target);if(el)el.classList.remove('vice-pressed')},{passive:true,capture:true});
+ document.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')on(find(e.target))},true);
+})();
+</script>
+</body>
+</html>
